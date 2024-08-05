@@ -35,8 +35,10 @@ using namespace capd;
 //   return subset(N,S) and X<-1 and v1[0]>1 and v[0]<1 and v[0]>-1 and intersection(maxS,N*interval(-1,1)*1.03,S);
 // }
 
+
 int main() {
-    
+    // good end_xi = 2.0316303819895247, x=-1.5825456493039376
+
     cout.precision(17);
     double x1 = -1.0849406631521703;
     double x2 = -1.0845890871772264;
@@ -45,12 +47,12 @@ int main() {
     // determine_curve_x(x1,xi);
     // xi=[2.0316266806418004, 2.0316266806917382]      x=-1.5825492625615398
 
-    double x0 = -1.5825492625615398;
-    double xi0 = interval(2.0316266806418004, 2.0316266806917382).mid().leftBound();
-    determine_curve_xi(x0,xi0);
+    // double x0 = -1.5825492625615398;
+    // double xi0 = interval(2.0316266806418004, 2.0316266806917382).mid().leftBound();
+    // determine_curve_xi(x0,xi0);
 
     // probably max max_xi=[2.0316506135713217, 2.031652613571322]
 
-    // cout << "second_curve" << endl;
-    // determine_curve_x(x2,xi);
+    cout << "second_curve" << endl;
+    determine_curve_x(x2,xi);
 }
