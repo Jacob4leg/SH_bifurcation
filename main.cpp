@@ -4,6 +4,7 @@
 
 using namespace std;
 using namespace capd;
+
 double findOrbit_x(double xi, double x, DPoincareMap& pm){
   pm.getVectorField().setParameter(0,xi);
   DMatrix D{{1,0,0,0},{0,0,0,0},{sqrt(2.)*x,0,0,0},{0,0,0,0}}, T(4,4);
@@ -77,43 +78,8 @@ double findOrbit_xi(double xi, double x, DPoincareMap& pm) {
     return xi - u[3] / D[3][4];
 }
 
-
-
-bool check_signs_of_derivative(interval x, interval xi, IC2PoincareMap &pm) {
-    static const interval sqrt2=interval(sqrt(2.0));
-
-    IMatrix DPhi(5,5), D(5,5);
-    // IHessian HPhi(5,5), H(5,5);
-
-    interval x_left = x.left();
-    interval x_right = x.right();
-
-    C2Rect2Set s_left({x_left,0,(sqr(x_left) - 1)/sqrt2,0,xi});
-    IVector v_left = pm(s_left,DPhi,2);
-    D = pm.computeDP(v_left,DPhi);
-
-    interval G_x_left = D[3][0] + D[3][2] * sqrt2 * x_left;
-    interval G_xi_left = D[3][4];
-
-    interval derivative_left = - G_x_left / G_xi_left;
-
-    DPhi.clear();
-    D.clear();
-
-    C2Rect2Set s_right({x_right,0,(sqr(x_right) - 1)/sqrt2,0,xi});
-    IVector v_right = pm(s_right,DPhi,2);
-    D = pm.computeDP(v_right,DPhi);
-
-    interval G_x_right = D[3][0] + D[3][2] * sqrt2 * x_right;
-    interval G_xi_right = D[3][4];
-
-    interval derivative_right = - G_x_right / G_xi_right;
-
-    return derivative_left * derivative_right < 0;
-}
-
 int counter_xi = 0;
-bool proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm) {
+tuple<bool,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm) {
     static const interval sqrt2=interval(sqrt(2.0));
     static interval S = interval(-1,1)*8e-6;
     static interval maxS = interval(-1,1)*5e-4;
@@ -126,7 +92,7 @@ bool proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm) {
         y = pm(s,2)[3];
     }
     catch(poincare::PoincareException<C0HORect2Set>) {
-        return false;
+        return {false,0};
     }
 
     interval XI = xi0 + S;
@@ -141,7 +107,7 @@ bool proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm) {
     }
     catch(poincare::PoincareException<C2Rect2Set>) {
         S *= 0.95;
-        return false;
+        return {false,0};
     }
     pm.computeDP(v2,DPhi,HPhi,D,H);
 
@@ -152,33 +118,27 @@ bool proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm) {
 
     Interval G_x = D[3][0] + D[3][2] * sqrt2 * x;
 
-    // cout << "G(x,xi)=" << fxi << endl;
-    // cout << "dG/dxi=" << G_xi << endl;
-    // cout << "dG/dx=" << G_x << endl;
-
     Interval xi_x = - G_x / G_xi;
-    // cout << "dxi/dx=" << xi_x << endl;
-    // cout << "dxi/dx=" << xi_x << endl;
+
     Interval G_x_x = H(3,0,0) + sqrt2 * (H(3,0,2) + D[3][2]);
     Interval G_xi_xi = H(3,4,4);
     Interval G_x_xi = H(3,0,4);
 
     Interval xi_x_x = -(G_x_x + (2 * G_x_xi + G_xi_xi * xi_x) * xi_x) / G_xi;
-    // cout << "d^2xi/dx^2=" << xi_x_x << endl;
 
-    if(xi_x.contains(0)) {
-        cout << "MAXIMUM candidate for XI=" << XI << ", x=" << x << endl;
+    // -1.5824941113082425,2.0316516135713902
+
+    // checking if the set contains maximum
+    if(x.contains(-1.5824941113082425 + interval(-1,1)*5e-11) && XI.contains(2.0316516135713902 + interval(-1,1)*5e-11)) {
+        cout << "maximum in XI=" << XI << ", x=" << x << endl;
     }
 
-    if(xi_x.contains(0) && check_signs_of_derivative(x,XI,pm))
-        cout << "MAXIMUM for XI=" << XI << ", x=" << x << endl;
-
-
+    
     if(subset(N,S))
-        if(counter_xi++%100 == 0) cout << "XI=" << XI << ", x=" << x << ", N=" << N << ", S=" << S << endl;
+        if(counter_xi++%100 == 0) cout << "XI=" << XI << ", x=" << x << ", N=" << N << ", S=" << S << ", xi''(x)=" << xi_x_x << endl;
     
 
-    return subset(N,S) and (xi_x_x < 0) and intersection(maxS,N*interval(-1,1)*1.001,S);
+    return {subset(N,S) and (xi_x_x < 0) and intersection(maxS,N*interval(-1,1)*1.001,S),XI};
 }
 
 
@@ -221,7 +181,7 @@ void prove_curve_x(double x) {
             }
 
             if(!proven_orbit) {
-                cout << "NOT COOL" << endl;
+                cout << "Problems to prove x orbit in last step" << endl;
             }
             break;
         }
@@ -248,8 +208,56 @@ void prove_curve_x(double x) {
 }
 
 
+
+bool proveMaximum(long double x, long double xi, IC2PoincareMap &pm) {
+    static const Interval sqrt2 = Interval(sqrt(2.0));
+    Interval S = Interval(-1,1)*5e-11;
+
+    Interval x0 = x;
+    Interval xi0 = xi;
+
+    IMatrix DPhi(5,5), D(5,5);
+    IHessian HPhi(5,5), H(5,5);
+
+
+    C1Rect2Set s({x0,0,(sqr(x0) - 1)/sqrt2, 0, xi0});
+    IVector u = pm(s,DPhi,2);
+    D = pm.computeDP(u,DPhi);
+
+    IVector Fx({u[3],D[3][0] + D[3][2] * sqrt2 * x});
+
+    Interval X = x0 + S;
+    Interval XI = xi0 + S;
+
+    DPhi.clear();
+    D.clear();
+
+    C2Rect2Set set({X,0,(sqr(X) - 1)/sqrt2,0,XI});
+    IVector U = pm(set,DPhi,HPhi,2);
+    pm.computeDP(U,DPhi,HPhi,D,H);
+
+    Interval G_xi = D[3][4];
+
+    Interval G_x = D[3][0] + D[3][2] * sqrt2 * x;
+
+    Interval xi_x = - G_x / G_xi;
+    Interval G_x_x = H(3,0,0) + sqrt2 * (H(3,0,2) + D[3][2]);
+    Interval G_xi_xi = H(3,4,4);
+    Interval G_x_xi = H(3,0,4);
+    Interval xi_x_x = -(G_x_x + (2 * G_x_xi + G_xi_xi * xi_x) * xi_x) / G_xi;
+
+    IMatrix DF({{G_x,G_xi},{G_x_x,G_x_xi}});
+
+    IVector N = - matrixAlgorithms::gauss(DF,Fx);
+
+    cout << "N=" << N << ", S=" << IVector{S,S} << endl;
+    cout << "xi''(x)=" << xi_x_x << endl;
+ 
+    return subset(N,IVector{S,S}) and (xi_x_x < 0);    
+}
+
 void prove_curve_xi(double xi) {
-    cout.precision(14);
+    // cout.precision(14);
 
     DMap vf("var:x,y,z,w,xi;fun:y,z,w,x*(1-x^2)-xi*z,0;");
     DOdeSolver solver(vf,20);
@@ -265,6 +273,8 @@ void prove_curve_xi(double xi) {
 
     interval start(-1.5825404947855202, -1.5825404947831205);
     interval end(-1.5824356099126025, -1.5824356099102712);
+    interval set0 = xi + interval(-1,1);
+    interval r;
     double x = start.leftBound();
 
     long double L=x;
@@ -273,14 +283,23 @@ void prove_curve_xi(double xi) {
     while(x <= end) {
         x = L + 0.5 * delta;
         xi = findOrbit_xi(xi,x,pm);
-        // cout << xi << endl;
+        auto res_orbit_check = proveOrbit_xi(xi,interval(L,L+delta),ipm);
+        bool proven_orbit = get<0>(res_orbit_check);
+        interval set = get<1>(res_orbit_check);
 
-        if(!proveOrbit_xi(xi,interval(L,L+delta),ipm)) {
+        if(!proven_orbit) {
             delta *= 0.95;
         }
         else {
+            if(!intersection(set0,set,r)) {
+                cout << "curve xi not glued correctly" << endl;
+                cout << "set0=" << set0 << endl;
+                cout << "set=" << set << endl;
+            }
+
             L = L+delta;
             delta*=1.001;
+            set0 = set;
         }
 
     }
@@ -321,9 +340,16 @@ interval find_tight_enclosure(interval X) {
 }
 
 int main() {
-    cout.precision(17);
+    cout.precision(7);
     // xi=[2.0316354390905, 2.0316354456206], N=[-2.2880109633725e-06, 2.2849418823175e-06], S=[-2.34688121145e-06, 2.34688121145e-06], step=[6.5300120866141e-09, 6.5300120866141e-09]
+    IMap ivf("var:x,y,z,w,xi;fun:y,z,w,x*(1-x^2)-xi*z,0;");
+    IC2OdeSolver isolver(ivf,7);
+    ICoordinateSection isection(5,1);
+    IC2PoincareMap ipm(isolver,isection);
+    
+    cout << proveMaximum(-1.5824941113082425,2.0316516135713902,ipm) << endl;
 
+    // return 0;
     prove_curve_xi(2.031635);
 
     
