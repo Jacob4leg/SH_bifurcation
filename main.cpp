@@ -57,7 +57,8 @@ tuple<bool,interval> proveOrbit_x(interval xi, double x, IPoincareMap& pm){
     }
         
     interval N = -y/derivative;
-    if(counter++% 100==0 || xi.contains(2031635./1000000)) cout << "xi=" << xi << ", X=" << X << ", N=" << N << ", S=" << S << endl;
+    interval end = interval(266291)/131072;
+    if(counter++% 1000==0 || xi.contains(end)) cout << "xi=" << xi << ", X=" << X << ", N=" << N << ", S=" << S << endl;
 
     bool is_subset = subset(N,S);
     // bool geometric_ok = X<-1 and v1[0]>1 and v2[0]<1 and v2[0]>-1;
@@ -79,7 +80,7 @@ double findOrbit_xi(double xi, double x, DPoincareMap& pm) {
 }
 
 int counter_xi = 0;
-tuple<bool,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm) {
+tuple<bool,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm, interval X_end) {
     static const interval sqrt2=interval(sqrt(2.0));
     static interval S = interval(-1,1)*8e-6;
     static interval maxS = interval(-1,1)*5e-4;
@@ -133,16 +134,15 @@ tuple<bool,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm) {
         cout << "maximum in XI=" << XI << ", x=" << x << endl;
     }
 
-    
     if(subset(N,S))
-        if(counter_xi++%100 == 0) cout << "XI=" << XI << ", x=" << x << ", N=" << N << ", S=" << S << ", xi''(x)=" << xi_x_x << endl;
+        if(counter_xi++%100 == 0 || x.contains(X_end)) cout << "XI=" << XI << ", x=" << x << ", N=" << N << ", S=" << S << ", xi''(x)=" << xi_x_x << endl;
     
 
     return {subset(N,S) and (xi_x_x < 0) and intersection(maxS,N*interval(-1,1)*1.001,S),XI};
 }
 
 
-void prove_curve_x(double x) {
+void prove_curve_x(double x, Interval end_X_to_check) {
     cout.precision(14);
 
     DMap vf("par:xi;var:x,y,z,w;fun:y,z,w,x*(1-x^2)-xi*z;");
@@ -151,7 +151,7 @@ void prove_curve_x(double x) {
     DPoincareMap pm(solver,section);
 
     IMap ivf("par:xi;var:x,y,z,w;fun:y,z,w,x*(1-x^2)-xi*z;");
-    IOdeSolver isolver(ivf,7);
+    IOdeSolver isolver(ivf,8);
     ICoordinateSection isection(4,1);
     IPoincareMap ipm(isolver,isection);
     isolver.setAbsoluteTolerance(2e-7);
@@ -163,26 +163,58 @@ void prove_curve_x(double x) {
 
     interval set0 = x + interval(-1,1);
     interval r;
-    interval end = interval(2031635)/1000000;
+    // interval end = interval(2031635)/1000000; // 2.031651
+    interval end = interval(266291)/131072;
+
+    /*
+    [09:18] Daniel Wilczak
+    266291/131072 = 266291 * 2^-17
+    
+    [09:19] Daniel Wilczak
+    2.0316390991210938
+ 
+
+    [09:20] Daniel Wilczak
+    532579/262144 = 532579 * 2^-18
+    
+    [09:20] Daniel Wilczak
+    2.0316276550292969
+ 
+    */
 
     while(L<=end){
 
         double xi = L+0.5*delta;
         x = findOrbit_x(xi,x,pm);
 
+        if(xi >= 2.031){
+            isolver.setAbsoluteTolerance(2e-8);
+            isolver.setRelativeTolerance(2e-8);
+        }
+
+
         if(L + delta > end) {
-            auto res_orbit_check = proveOrbit_x(interval(L,end.rightBound()),x,ipm);
+            cout << "last step" << endl;
+            interval end_interval = interval(L,end.rightBound());
+            auto res_orbit_check = proveOrbit_x(end_interval,x,ipm);
             bool proven_orbit = get<0>(res_orbit_check);
             interval set = get<1>(res_orbit_check);
-
-            if(!intersection(set0,set,r)) {
-                cout << "x curve not glued correctly" << endl;
-                break;
-            }
 
             if(!proven_orbit) {
                 cout << "Problems to prove x orbit in last step" << endl;
             }
+
+            if(!intersection(set0,set,r)) {
+                cout << "x curve not glued correctly" << endl;
+                // break;
+            }
+
+            bool contains_threshold_box = end_interval.contains(end) and set.contains(end_X_to_check);
+
+            if(!contains_threshold_box) {
+                cout << "threshold box not in parameterization" << endl;
+            }
+
             break;
         }
         auto res_orbit_check = proveOrbit_x(interval(L,L+delta),x,ipm);
@@ -241,9 +273,9 @@ bool proveMaximum(long double x, long double xi, IC2PoincareMap &pm) {
     Interval G_x = D[3][0] + D[3][2] * sqrt2 * x;
 
     Interval xi_x = - G_x / G_xi;
-    Interval G_x_x = H(3,0,0) + sqrt2 * (H(3,0,2) + D[3][2]);
-    Interval G_xi_xi = H(3,4,4);
-    Interval G_x_xi = H(3,0,4);
+    Interval G_x_x = H(3,0,0) / 2 + sqrt2 * (H(3,0,2) + D[3][2]);
+    Interval G_xi_xi = H(3,4,4) / 2;
+    Interval G_x_xi = H(3,0,4) / 2;
     Interval xi_x_x = -(G_x_x + (2 * G_x_xi + G_xi_xi * xi_x) * xi_x) / G_xi;
 
     IMatrix DF({{G_x,G_xi},{G_x_x,G_x_xi}});
@@ -256,7 +288,7 @@ bool proveMaximum(long double x, long double xi, IC2PoincareMap &pm) {
     return subset(N,IVector{S,S}) and (xi_x_x < 0);    
 }
 
-void prove_curve_xi(double xi) {
+void prove_curve_xi(double xi, interval X_start, interval X_end) {
     // cout.precision(14);
 
     DMap vf("var:x,y,z,w,xi;fun:y,z,w,x*(1-x^2)-xi*z,0;");
@@ -265,27 +297,59 @@ void prove_curve_xi(double xi) {
     DPoincareMap pm(solver,section);
 
     IMap ivf("var:x,y,z,w,xi;fun:y,z,w,x*(1-x^2)-xi*z,0;");
-    IC2OdeSolver isolver(ivf,7);
+    IC2OdeSolver isolver(ivf,8);
     ICoordinateSection isection(5,1);
     IC2PoincareMap ipm(isolver,isection);
     isolver.setAbsoluteTolerance(2e-7);
     isolver.setRelativeTolerance(2e-7);
 
-    interval start(-1.5825404947855202, -1.5825404947831205);
-    interval end(-1.5824356099126025, -1.5824356099102712);
+    // interval start(-1.5825404947855202, -1.5825404947831205);
+    // interval end(-1.5824356099126025, -1.5824356099102712);
+    interval xi_threshold = interval(266291)/131072;
     interval set0 = xi + interval(-1,1);
-    interval r;
-    double x = start.leftBound();
+    interval X,r;
+    double x = X_start.leftBound();
 
     long double L=x;
     long double delta = 1e-8;
 
-    while(x <= end) {
+    bool first_iter = true;
+
+    while(x <= X_end) {
         x = L + 0.5 * delta;
         xi = findOrbit_xi(xi,x,pm);
-        auto res_orbit_check = proveOrbit_xi(xi,interval(L,L+delta),ipm);
+
+        if(x + delta > X_end) {
+            cout << "last step" << endl;
+            X = interval(L,X_end.rightBound());
+            auto res_orbit_check = proveOrbit_xi(xi,X,ipm,X_end);
+            bool proven_orbit = get<0>(res_orbit_check);
+            interval set = get<1>(res_orbit_check);
+            bool contains_second_threshold_box = X.contains(X_end) and set.contains(xi_threshold);
+            if(!proven_orbit)
+                cout << "problems to prove xi curve in last step" << endl;
+            if(!intersection(set0, set, r))
+                cout << "xi curve not glued correctly" << endl;
+            if(contains_second_threshold_box) 
+                cout << "threshold box in parameterization" << endl;
+            else
+                cout << "threshold box not in parameterization" << endl;
+            break;
+        }
+
+        X = interval(L,L+delta);
+        auto res_orbit_check = proveOrbit_xi(xi,interval(L,L+delta),ipm,X_end);
         bool proven_orbit = get<0>(res_orbit_check);
         interval set = get<1>(res_orbit_check);
+
+        if(first_iter) {
+            bool contains_first_threshold_box = X.contains(X_start) and set.contains(xi_threshold);
+            if(contains_first_threshold_box)
+                cout << "threshold box in parameterization" << endl;
+            else
+                cout << "threshold box not in parameterization" << endl;
+            first_iter = false;
+        }
 
         if(!proven_orbit) {
             delta *= 0.95;
@@ -331,7 +395,7 @@ Interval interval_newton(Interval X, Interval xi, IPoincareMap &pm, int iteratio
 }
 
 interval find_tight_enclosure(interval X) {
-    interval xi = interval(2031635)/1000000;
+    interval xi = interval(266291)/131072;
     IMap ivf("par:xi;var:x,y,z,w;fun:y,z,w,x*(1-x^2)-xi*z;");
     IOdeSolver isolver(ivf,20);
     ICoordinateSection isection(4,1);
@@ -340,7 +404,36 @@ interval find_tight_enclosure(interval X) {
 }
 
 int main() {
-    cout.precision(7);
+    cout.precision(17);
+
+    double x1 = -1.0849406631521703;
+    double x2 = -1.0845890871772264;
+
+    interval X1(-1.5825372476037, -1.5825328805433);
+    interval X2(-1.5824461925798, -1.5824418541956);
+
+    double xi_threshold = 266291./131072;
+
+    interval X1_end = find_tight_enclosure(X1);
+    interval X2_end = find_tight_enclosure(X2);
+
+    cout << "X1_end=" << X1_end << ", diam=" << diam(X1_end) << endl;
+    cout << "X2_end=" << X2_end << ", diam=" << diam(X2_end) << endl;
+    
+    // first curve
+    // prove_curve_x(x1,X1_end);
+    // second curve
+    // prove_curve_x(x2,X2_end);
+    // xi curve
+    prove_curve_xi(xi_threshold, X1_end, X2_end);
+
+
+    return 0;
+
+    
+    // prove_curve_x(-1.0845890871772264);
+    return 0;
+
     // xi=[2.0316354390905, 2.0316354456206], N=[-2.2880109633725e-06, 2.2849418823175e-06], S=[-2.34688121145e-06, 2.34688121145e-06], step=[6.5300120866141e-09, 6.5300120866141e-09]
     IMap ivf("var:x,y,z,w,xi;fun:y,z,w,x*(1-x^2)-xi*z,0;");
     IC2OdeSolver isolver(ivf,7);
@@ -350,13 +443,13 @@ int main() {
     cout << proveMaximum(-1.5824941113082425,2.0316516135713902,ipm) << endl;
 
     // return 0;
-    prove_curve_xi(2.031635);
+    
 
     
     return 0;
     // prove_curve_xi()
 
-    prove_curve_x(-1.0849406631521703);
+    // prove_curve_x(-1.0849406631521703);
 
     // prove_curve_xi(2.031635,interval(-1.5825425951379, -1.5825383961184).rightBound());
 
@@ -365,8 +458,7 @@ int main() {
     // good end_xi = 2.0316303819895247, x=-1.5825456493039376
 
     cout.precision(17);
-    double x1 = -1.0849406631521703;
-    double x2 = -1.0845890871772264;
+
     double xi = 0.0;
     // cout << "first_curve" << endl;
     // determine_curve_x(x1,xi);
