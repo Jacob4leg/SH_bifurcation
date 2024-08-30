@@ -23,6 +23,6 @@ where x is treated as the parameter, and S is the width of the set XI. xi''(x) i
 
 ```maximum in XI=[], x=[]```
 
-At the end of determining curves $x_{\pm}, \tilde{\xi}$, and at the beginning of the curve $\tilde{\xi}$, the program checks if the curves glue correctly into one smooth curve. If that is the case, then the program outputs message
+At the beginning and end of determining curve $\tilde{\xi}$ the program checks if the curve glues correctly with curves $x_{\pm}$ into one smooth curve. If that is the case, then the program outputs message
 
 ```threshold box in parameterization```
