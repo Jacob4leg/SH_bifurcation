@@ -26,7 +26,6 @@ bool proveMaximum(interval X, interval XI, IC2PoincareMap &pm, interval S=interv
     IMatrix DPhi(5,5), D(5,5); // monodromy matrix and derivative
     IHessian HPhi(5,5), H(5,5); // Hessian
 
-
     C1Rect2Set s({x0,0,(sqr(x0) - 1)/sqrt2, 0, xi0});
     IVector u = pm(s,DPhi,2);
     D = pm.computeDP(u,DPhi);
@@ -139,8 +138,11 @@ tuple<bool,interval,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMa
     return {is_subset and geometric_ok and (xi_x_x < 0) and intersection(maxS,N*interval(-1,1)*1.001,S),XI,xi_x_x};
 }
 
-
-int proveCurve_xi(double xi, interval X_start, interval X_end) {
+/*
+Function determines the existence of the curve in range x \in X_*.
+Returns number of subintervals
+*/
+tuple<int,interval> proveCurve_xi(double xi, interval X_start, interval X_end) {
     counter_xi = 0;
     // definition of double Poincare map
     DMap vf("var:x,y,z,w,xi;fun:y,z,w,x*(1-x^2)-xi*z,0;");
@@ -162,8 +164,8 @@ int proveCurve_xi(double xi, interval X_start, interval X_end) {
     interval X,r;
     double x = X_start.leftBound();
 
-    long double L=x;
-    long double delta = 1e-8;
+    double L=x;
+    double delta = 1e-8;
 
     bool first_step = true;
 
@@ -171,20 +173,10 @@ int proveCurve_xi(double xi, interval X_start, interval X_end) {
         x = L + 0.5 * delta;
         xi = findOrbit_xi(xi,x,pm); // we find an approximate zero of G
 
-        bool last_step = (x + delta > X_end);
-        interval X;
-        if(last_step) {
-            cout << "last step" << endl;
-            X = interval(L,X_end.rightBound()); // if last step, then we verify the curve on the interval [L, x_{+}(\xi_*)*]
-        }
-        else
-            X = interval(L,L+delta);
-
-        // X = interval(L,L+delta);
-        auto res_orbit_check = proveOrbit_xi(xi,X,ipm,X_end); // we use Interval Newton Method to determine the existence of the smooth curve within some box
-        bool proven_orbit = get<0>(res_orbit_check);
-        interval set = get<1>(res_orbit_check);
-        interval second_der = get<2>(res_orbit_check);
+        bool last_step = (L + delta > X_end);
+        double R = capd::min(L+delta, X_end.rightBound());
+        interval X(L,R);
+        auto [proven_orbit,set,second_der] = proveOrbit_xi(xi,X,ipm,X_end); // we use Interval Newton Method to determine the existence of the smooth curve within some box
 
         if(!proven_orbit) {
             delta *= 0.95; // if we failed, then we shrink x range 
@@ -218,9 +210,7 @@ int proveCurve_xi(double xi, interval X_start, interval X_end) {
                 cout << "threshold box not in parameterization" << endl;
             break;
         }
-
     }
-    cout << "subdivision: " << counter_xi << endl;
-    cout << "second derivative bound : " << xi_x_x << endl;
-    return counter_xi;
+    cout << "Whole curve computed" << endl;
+    return {counter_xi,xi_x_x};
 }

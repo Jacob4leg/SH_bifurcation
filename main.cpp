@@ -17,15 +17,13 @@ Interval interval_newton(Interval X, Interval xi, IPoincareMap &pm, int iteratio
     C0HORect2Set s({x0,0,(sqr(x0)-1)/sqrt2,0});
     interval y = pm(s,2)[3];
 
-    IMatrix m(4,4),D(4,4);
-    C1HORect2Set set({X,0,(sqr(X)-1)/sqrt2,0});
-    IVector v = pm(set,m,2);
-    D = pm.computeDP(v,m);
-    interval derivative = D[3][0] + D[3][2] * sqrt2 * X;
+    IMatrix D{{1,0,0,0},{0,0,0,0},{sqrt2*X,0,0,0},{0,0,0,0}};
+    C1HORect2Set set(C1Rect2Set::C0BaseSet({X,0,(sqr(X)-1)/sqrt2,0}),C1Rect2Set::C1BaseSet{D});
+    IVector v = pm(set,D,2);
+    interval derivative = pm.computeDP(v,D)[3][0];
     if(derivative.contains(0))
         return 0;
     interval N = x0-y/derivative;
-
     interval r;
     if(!intersection(X,N,r))
         return 0;
@@ -35,8 +33,7 @@ Interval interval_newton(Interval X, Interval xi, IPoincareMap &pm, int iteratio
 }
 
 /* The same but for threshold parameter and specified Poincare map */
-interval find_tight_enclosure(interval X) {
-    interval xi = interval(266291)/131072;
+interval find_tight_enclosure(interval X, interval xi) {
     IMap ivf("par:xi;var:x,y,z,w;fun:y,z,w,x*(1-x^2)-xi*z;");
     IOdeSolver isolver(ivf,20);
     ICoordinateSection isection(4,1);
@@ -53,29 +50,23 @@ int main() {
     double x1 = -1.0849406631521703;
     double x2 = -1.0845890871772264;
 
-    // threshold boxes for xi = 266291./131072
-    interval X1(-1.5825372476037, -1.5825328805433);
-    interval X2(-1.5824461925798, -1.5824418541956);
-
-
     // threshold xi
     double xi_threshold = 266291./131072;
-
-    // tight enclosures for threshold x
-    interval X1_end = find_tight_enclosure(X1);
-    interval X2_end = find_tight_enclosure(X2);
-
-    cout << "X1_end=" << X1_end << ", diam=" << diam(X1_end) << endl;
-    cout << "X2_end=" << X2_end << ", diam=" << diam(X2_end) << endl;
     
     // first curve
-    int subdivisions_first_curve = proveCurve_x(x1,X1_end);
+    auto [subdivisions_first_curve, X1_threshold] = proveCurve_x(x1,xi_threshold);
+    X1_threshold = find_tight_enclosure(X1_threshold,xi_threshold);
+    cout << "X1_threshold=" << X1_threshold << endl;
     auto after_first_curve = high_resolution_clock::now();
-    // // second curve
-    int subdivisions_second_curve = proveCurve_x(x2,X2_end);
+
+    // second curve
+    auto [subdivisions_second_curve, X2_threshold] = proveCurve_x(x2,xi_threshold);
+    X2_threshold = find_tight_enclosure(X2_threshold,xi_threshold);
+    cout << "X2_threshold=" << X2_threshold << endl;
     auto after_second_curve = high_resolution_clock::now();
+
     // xi curve
-    int subdivisions_xi_curve = proveCurve_xi(xi_threshold, X1_end, X2_end);
+    auto [subdivisions_xi_curve, second_der] = proveCurve_xi(xi_threshold, X1_threshold, X2_threshold);
     auto stop = high_resolution_clock::now();
 
     auto duration_first_curve = duration_cast<milliseconds>(after_first_curve - start);
@@ -90,6 +81,9 @@ int main() {
     cout << "Subdivisions first curve = " << subdivisions_first_curve << endl;
     cout << "Subdivisions second curve = " << subdivisions_second_curve << endl;
     cout << "Subdivisions xi curve = " << subdivisions_xi_curve << endl;
+    cout << "X1_threshold = " << X1_threshold << endl;
+    cout << "X2_threshold = " << X2_threshold << endl; 
+    cout << "second derivative xi''(x) = " << second_der << endl;
 
     return 0;
 }

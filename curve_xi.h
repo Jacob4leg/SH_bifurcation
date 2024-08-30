@@ -1,4 +1,4 @@
 #include<iostream>
 #include "capd/capdlib.h"
 
-int proveCurve_xi(double, capd::interval, capd::interval);
+std::tuple<int,capd::interval> proveCurve_xi(double, capd::interval, capd::interval);

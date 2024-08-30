@@ -40,20 +40,19 @@ tuple<bool,interval> proveOrbit_x(interval xi, double x, IPoincareMap& pm){
     }
 
     interval X = x0 + S; // interval [x-eps,x+eps]
-    IMatrix m(4,4),D(4,4); // monodromy matrix and derivative
-    C1HORect2Set set({X,0,(sqr(X)-1)/sqrt2,0});
+    IMatrix D{{1,0,0,0},{0,0,0,0},{sqrt2*X,0,0,0},{0,0,0,0}};
+    C1HORect2Set set(C1Rect2Set::C0BaseSet({X,0,(sqr(X)-1)/sqrt2,0}),C1Rect2Set::C1BaseSet{D});
     IVector v1,v2;
 
     try{ // again we try to integrate vector field, but here x is an interval
         v1 = pm(set);
-        v2 = pm(set,m);
+        v2 = pm(set,D);
     }
     catch(poincare::PoincareException<C1HORect2Set>) {
         S *= 0.95; // we shrink [-eps,eps] interval if integration failed
         return {false,0};
     }
-    D = pm.computeDP(v2,m); // computation of the derivative of Poincare map, using monodromy matrix
-    interval derivative = D[3][0] + D[3][2] * sqrt2 * X; // 1 dim derivative of G(\xi,x) with respect to x
+    interval derivative = pm.computeDP(v2,D)[3][0];
     if(derivative.contains(0)) { // if derivative contains zero, then we try with smaller \xi range
         return {false,0};
     }
@@ -71,9 +70,10 @@ tuple<bool,interval> proveOrbit_x(interval xi, double x, IPoincareMap& pm){
 }
 
 /*
-Function determines the existence of the curve in range \xi \in [0, \xi_*]
+Function determines the existence of the curve in range \xi \in [0, \xi_*].
+Returns number of subintervals and the last X^N set
 */
-int proveCurve_x(double x, interval end_X_to_check) {  
+tuple<int,interval> proveCurve_x(double x, interval end) {  
     counter = 0;
     // definition of double Poincare map
     DMap vf("par:xi;var:x,y,z,w;fun:y,z,w,x*(1-x^2)-xi*z;");
@@ -89,12 +89,11 @@ int proveCurve_x(double x, interval end_X_to_check) {
     isolver.setAbsoluteTolerance(2e-7);
     isolver.setRelativeTolerance(2e-7);
 
-    long double L=0, xi=0;
-    long double delta = 1e-5;
+    double L=0, xi=0;
+    double delta = 1e-5;
 
     interval set0 = x + interval(-1,1);
     interval r;
-    interval end = interval(266291)/131072;
 
     while(L<=end){
 
@@ -106,20 +105,10 @@ int proveCurve_x(double x, interval end_X_to_check) {
             isolver.setRelativeTolerance(2e-8);
         }
 
-        bool last_step = (L + delta > end);
-
-        interval XI;
-        if(last_step) {
-            cout << "last step" << endl;
-            XI = interval(L,end.rightBound()); // if last step, then we verify the curve on the interval [L, \xi_*]
-        }
-        else
-            XI = interval(L,L+delta);
-
-        auto res_orbit_check = proveOrbit_x(XI,x,ipm); // we use Interval Newton Method to determine the existence of the smooth curve within some box
-        bool proven_orbit = get<0>(res_orbit_check);
-        interval set = get<1>(res_orbit_check);
-
+        double R = capd::min(L+delta, end.rightBound());
+        interval XI(L,R);
+        auto [proven_orbit,set] = proveOrbit_x(XI,x,ipm); // we use Interval Newton Method to determine the existence of the smooth curve within some box
+        
         if(!(proven_orbit))  
             delta*=0.95; // if we failed, then we shrink \xi range
         else {
@@ -133,17 +122,7 @@ int proveCurve_x(double x, interval end_X_to_check) {
             delta*=1.001; // if we succeded, then we slightly increase \xi range
             set0 = set;
         }
-
-        if(last_step) {
-            bool contains_threshold_box = XI.contains(end) and set.contains(end_X_to_check); // checking if last box contains threshold section
-            if(contains_threshold_box)
-                cout << "threshold box in parametrization" << endl;
-            else
-                cout << "threshold box not in parametrization" << endl;
-            break;
-        }
-
     }
-    cout << "subdivision:" << counter << endl;
-    return counter;
+    cout << "Whole curve computed" << endl;
+    return {counter,set0};
 }
