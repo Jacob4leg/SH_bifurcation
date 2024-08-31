@@ -73,11 +73,14 @@ int main() {
     auto duration_second_curve = duration_cast<milliseconds>(after_second_curve - after_first_curve);
     auto duration_xi_curve = duration_cast<milliseconds>(stop - after_second_curve);
     auto duration_all = duration_cast<milliseconds>(stop - start);
+
+    cout.precision(2);
     cout << "Time for first curve: " << double(duration_first_curve.count()) / 1000  << "s" << endl;
     cout << "Time for second curve: " << double(duration_second_curve.count()) / 1000  << "s" << endl;
     cout << "Time for xi curve: " << double(duration_xi_curve.count()) / 1000  << "s" << endl;
     cout << "Total time elapsed: " << double(duration_all.count()) / 1000  << "s" << endl;
     cout << endl;
+    cout.precision(17);
     cout << "Subdivisions first curve = " << subdivisions_first_curve << endl;
     cout << "Subdivisions second curve = " << subdivisions_second_curve << endl;
     cout << "Subdivisions xi curve = " << subdivisions_xi_curve << endl;

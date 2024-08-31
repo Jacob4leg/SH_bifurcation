@@ -59,8 +59,6 @@ bool proveMaximum(interval X, interval XI, IC2PoincareMap &pm, interval S=interv
     return subset(N,IVector{S,S}) and (xi_x_x < 0);    
 }
 
-int counter_xi = 0; // for counting the number of needed subintervals for enclosing the xi curve
-
 /*
 Function which uses the theorem for Interval Newton Operator to prove the existence of the smooth curve within small interval \Xi = [\xi-eps,\xi+eps].
 Each point of the curve corresponds to the unique periodic orbit of the Swift-Hohenberg equation. Here x is treated as the parameter
@@ -72,70 +70,58 @@ tuple<bool,interval,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMa
     static interval maxS = interval(-1,1)*5e-4;
 
     interval xi0 = xi;
+    
     C0HORect2Set s({x,0,(sqr(x)-1)/sqrt2,0,xi0});
-    interval y;
-
-    try{ // we try integrate vector field
-        y = pm(s,2)[3];
-    }
-    catch(poincare::PoincareException<C0HORect2Set>) {
-        return {false,0,0}; // we shrink x range if we failed 
-    }
-
     interval XI = xi0 + S;
-    IMatrix DPhi(5,5), D(5,5);
-    IHessian HPhi(5,5), H(5,5);
-    C2Rect2Set set({x,0,(sqr(x) - 1)/sqrt2,0,XI});
-    IVector v1,v2;
+    interval y, N, xi_x_x;
+    IVector v1, v2;
 
-    try{ // we try to integrate with \xi as interval
+    try{
+        y = pm(s,2)[3];
+        
+        IMatrix DPhi(5,5), D(5,5);
+        IHessian HPhi(5,5), H(5,5);
+        C2Rect2Set set({x,0,(sqr(x) - 1)/sqrt2,0,XI});
         v1 = pm(set,DPhi,HPhi);
         v2 = pm(set,DPhi,HPhi);
-    }
-    catch(poincare::PoincareException<C2Rect2Set>) {
+        pm.computeDP(v2,DPhi,HPhi,D,H); // computation of all derivatives of the order <= 2
+
+        // all needed derivatives
+        Interval fxi = v2[3];
+        Interval G_xi = D[3][4];
+        N = y / G_xi;
+        Interval G_x = D[3][0] + D[3][2] * sqrt2 * x;
+        Interval xi_x = - G_x / G_xi;
+        Interval G_x_x = H(3,0,0) * 2 + sqrt2 * (H(3,0,2) * 2 + D[3][2]);
+        Interval G_xi_xi = H(3,4,4) * 2;
+        Interval G_x_xi = H(3,0,4) * 2;
+        xi_x_x = -(G_x_x + (2 * G_x_xi + G_xi_xi * xi_x) * xi_x) / G_xi;
+
+        // box, which contains maximum of the function \xi(x)
+        interval X_max = -1.5824941113082425 + interval(-1,1)*1e-10;
+        interval XI_max = 2.0316516135713902 + interval(-1,1)*1e-10;
+
+        // we verify if max box is contained in the enclosure of the curve
+        if(x.contains(X_max) && XI.contains(XI_max)) {
+            cout << "checking maximum" << endl;
+            // we need to decrease the tolerance of ODE solver for max checking purpose
+            pm.getSolver().setAbsoluteTolerance(2e-13);
+            pm.getSolver().setRelativeTolerance(2e-13);
+            bool is_maximum = proveMaximum(X_max,XI_max,pm); // checking if this box contains maximum
+            if(is_maximum)
+                cout << "maximum in XI=" << XI << ", x=" << x << endl;
+            else
+                cout << "Problems in determining if is max" << endl;
+            pm.getSolver().setAbsoluteTolerance(2e-7);
+            pm.getSolver().setRelativeTolerance(2e-7);
+        }
+    }catch(exception e) {
         S *= 0.95; // we shrink \xi range if we failed
         return {false,0,0};
     }
-    pm.computeDP(v2,DPhi,HPhi,D,H); // computation of all derivatives of the order <= 2
 
-    // all needed derivatives
-    Interval fxi = v2[3];
-    Interval G_xi = D[3][4];
-    Interval N = y / G_xi;
-    Interval G_x = D[3][0] + D[3][2] * sqrt2 * x;
-    Interval xi_x = - G_x / G_xi;
-    Interval G_x_x = H(3,0,0) * 2 + sqrt2 * (H(3,0,2) * 2 + D[3][2]);
-    Interval G_xi_xi = H(3,4,4) * 2;
-    Interval G_x_xi = H(3,0,4) * 2;
-    Interval xi_x_x = -(G_x_x + (2 * G_x_xi + G_xi_xi * xi_x) * xi_x) / G_xi;
-    
-    // box, which contains maximum of the function \xi(x)
-    interval X_max = -1.5824941113082425 + interval(-1,1)*1e-10;
-    interval XI_max = 2.0316516135713902 + interval(-1,1)*1e-10;
-
-    // we verify if max box is contained within the enclosure of the curve
-    if(x.contains(X_max) && XI.contains(XI_max)) {
-        cout << "checking maximum" << endl;
-        // we need to decrease the tolerance of ODE solver for max checking purpose
-        pm.getSolver().setAbsoluteTolerance(2e-13);
-        pm.getSolver().setRelativeTolerance(2e-13);
-        bool is_maximum = proveMaximum(X_max,XI_max,pm); // checking if this box contains maximum
-        if(is_maximum)
-            cout << "maximum in XI=" << XI << ", x=" << x << endl;
-        else
-            cout << "Problems in determining if is max" << endl;
-        pm.getSolver().setAbsoluteTolerance(2e-7);
-        pm.getSolver().setRelativeTolerance(2e-7);
-    }
-
-    bool is_subset = subset(N,S); // Interval Newton Operator condition
     bool geometric_ok = x<-1 and v1[0]>1 and v2[0]<1 and v2[0]>-1; // geometric condition
-
-    if(is_subset and geometric_ok)
-        if(counter_xi++%100 == 0 || x.contains(X_end)) cout << "XI=" << XI << ", x=" << x << ", N=" << N << ", S=" << S << ", xi''(x)=" << xi_x_x << endl;
-    
-    // returns the result, \xi range and enclosure of second derivative
-    return {is_subset and geometric_ok and (xi_x_x < 0) and intersection(maxS,N*interval(-1,1)*1.001,S),XI,xi_x_x};
+    return {subset(N,S) and geometric_ok and (xi_x_x < 0) and intersection(maxS,N*interval(-1,1)*1.001,S),XI,xi_x_x};
 }
 
 /*
@@ -143,7 +129,7 @@ Function determines the existence of the curve in range x \in X_*.
 Returns number of subintervals
 */
 tuple<int,interval> proveCurve_xi(double xi, interval X_start, interval X_end) {
-    counter_xi = 0;
+    int counter_subintervals = 0;
     // definition of double Poincare map
     DMap vf("var:x,y,z,w,xi;fun:y,z,w,x*(1-x^2)-xi*z,0;");
     DOdeSolver solver(vf,20);
@@ -158,7 +144,7 @@ tuple<int,interval> proveCurve_xi(double xi, interval X_start, interval X_end) {
     isolver.setAbsoluteTolerance(2e-7);
     isolver.setRelativeTolerance(2e-7);
 
-    interval xi_threshold = interval(266291)/131072;
+    interval xi_threshold = xi;
     interval set0 = xi + interval(-1,1);
     interval xi_x_x(-50000); // for storing whole enclosure of second derivative. -50000 is chosen, because first subinterval contains this value
     interval X,r;
@@ -187,6 +173,8 @@ tuple<int,interval> proveCurve_xi(double xi, interval X_start, interval X_end) {
                 cout << "set0=" << set0 << endl;
                 cout << "set=" << set << endl;
             }
+            if(counter_subintervals++%100 == 0 || X.contains(X_end)) 
+                cout << "XI=" << set << ", X=" << X << ", xi''(x) in " << second_der << endl;
 
             xi_x_x = intervalHull(second_der,xi_x_x); // updating the enclosure of the second derivative
             L = L+delta;
@@ -212,5 +200,5 @@ tuple<int,interval> proveCurve_xi(double xi, interval X_start, interval X_end) {
         }
     }
     cout << "Whole curve computed" << endl;
-    return {counter_xi,xi_x_x};
+    return {counter_subintervals,xi_x_x};
 }
