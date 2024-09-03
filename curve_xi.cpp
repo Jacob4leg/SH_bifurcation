@@ -3,7 +3,15 @@
 using namespace std;
 using namespace capd;
 
-/* function for finding approximate solution of G(\xi,x) = 0, where x is treated as the parameter */
+/**
+ * @brief Finds an approximate solution of G(\xi,x) = 0, where x is treated as the parameter
+ * 
+ * @param double initial condition for ODE solver
+ * @param double parameter of vector field
+ * @param DPoincareMap reference to Poincare map object
+ * 
+ * @returns approximate zero \xi
+ */
 double findOrbit_xi(double xi, double x, DPoincareMap& pm) {
     DMatrix D({{1,0,0,0,0},{0,0,0,0,0},{sqrt(2.0)*x,0,0,0,0},{0,0,0,0,0},{0,0,0,0,1}}), T(5,5);
     DVector u({x,0,(x*x-1)/sqrt(2.0),0,xi});
@@ -15,16 +23,23 @@ double findOrbit_xi(double xi, double x, DPoincareMap& pm) {
     return xi - u[3] / D[3][4];
 }
 
-
-/* 
-Function, which uses second derivative, to prove the existence of unique maximum of \xi(x).
-If the function returns true, then the existence of unique maxiumam is proven with success.
-*/
-bool proveMaximum(interval X, interval XI, IC2PoincareMap &pm, interval S=interval(-1,1)*1e-10) {
+/**
+ * @brief uses implicit second derivative to prove the existence of unique maximum of \xi(x) in a given box
+ * 
+ * @param interval range of \xi values
+ * @param interval range of x values
+ * @param IC2PoincareMap reference to interval C2 Poincare map
+ * 
+ * @returns result if existence of unique maximum is proved successfully
+ */
+bool proveMaximum(interval X, interval XI, IC2PoincareMap &pm) {
     static const Interval sqrt2 = Interval(sqrt(2.0));
 
-    Interval x0 = X.mid();
-    Interval xi0 = XI.mid();
+    // we extract midpoints and remainders
+    interval x0, r_x;
+    interval xi0, r_xi;
+    X.split(x0,r_x);
+    XI.split(xi0,r_xi);
 
     IMatrix DPhi(5,5), D(5,5); // monodromy matrix and derivative
     IHessian HPhi(5,5), H(5,5); // Hessian
@@ -55,18 +70,23 @@ bool proveMaximum(interval X, interval XI, IC2PoincareMap &pm, interval S=interv
 
     IVector N = - matrixAlgorithms::gauss(DF,Fx);
 
-    cout << "N=" << N << ", S=" << IVector{S,S} << endl;
+    cout << "N=" << N << ", S=" << IVector{r_xi,r_x} << endl;
     cout << "xi''(x)=" << xi_x_x << endl;
     cout << "(xi^*, x^*) belongs to the cartesian product of " << IVector{xi0,x0} - N << endl;
  
-    return subset(N,IVector{S,S}) and (xi_x_x < 0);    
+    return subset(N,IVector{r_xi,r_x}) and (xi_x_x < 0);    
 }
 
-/*
-Function which uses the theorem for Interval Newton Operator to prove the existence of the smooth curve within small interval \Xi = [\xi-eps,\xi+eps].
-Each point of the curve corresponds to the unique periodic orbit of the Swift-Hohenberg equation. Here x is treated as the parameter
-Returns the result if the curve on interval is proved successfully, the result interval XI which encloses the curve and the bound of the second derivative
-*/
+/**
+ * @brief proves the existence of a smooth curve in interval product XI \times x
+ * 
+ * @param interval approximate zero and middle point of interval XI 
+ * @param double range for x parameter
+ * @param IPoincareMap reference to interval Poincare map object
+ * 
+ * @returns tuple {res, XI,xi_x_x} - res is a bool value, which tells if proof was successful, XI is a range of initial values, which encloses the curve, xi_x_x
+ *          is a bound of implicit second derivative \xi''(x)
+ */
 tuple<bool,interval,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm, interval X_end) {
     static const interval sqrt2=interval(sqrt(2.0));
     static interval S = interval(-1,1)*8e-6;
@@ -126,10 +146,14 @@ tuple<bool,interval,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMa
     return {subset(N,S) and geometric_ok and (xi_x_x < 0) and intersection(maxS,N*interval(-1,1)*1.001,S),XI,xi_x_x};
 }
 
-/*
-Function determines the existence of the curve in range x \in X_*.
-Returns the number of subintervals and the enclosure of the second derivative
-*/
+/**
+ * @brief determines the existence of the curve in range x \in [x^{\xi_*}_{-},x^{\xi_*}_{+}]
+ * 
+ * @param double initial point for determining the curve, approximate zero of G
+ * @param interval interval, which contains value x^{\xi_*}_{-}
+ * 
+ * @returns tuple {num_of_subintervals, xi_x_x} - the amount of needed subintervals and enclosure of the second derivative \xi''(x) on the whole curve
+ */
 tuple<int,interval> proveCurve_xi(double xi, interval X_start, interval X_end) {
     int counter_subintervals = 0;
     // definition of double Poincare map

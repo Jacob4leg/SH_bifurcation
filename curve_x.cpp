@@ -3,7 +3,15 @@
 using namespace std;
 using namespace capd;
 
-/* function for finding an approximate solution of G(\xi,x) = 0, where \xi is treated as the parameter */
+/**
+ * @brief Finds an approximate solution of G(\xi,x) = 0, where \xi is treated as the parameter
+ * 
+ * @param double parameter of vector field
+ * @param double initial condition for ODE solver
+ * @param DPoincareMap reference to Poincare map object
+ * 
+ * @returns approximate zero x
+ */
 double findOrbit_x(double xi, double x, DPoincareMap& pm){
     pm.getVectorField().setParameter(0,xi);
     DMatrix D{{1,0,0,0},{0,0,0,0},{sqrt(2.)*x,0,0,0},{0,0,0,0}}, T(4,4);
@@ -16,11 +24,15 @@ double findOrbit_x(double xi, double x, DPoincareMap& pm){
     return x - u[3]/D[3][0];
 }
 
-/*
-Function which uses the theorem for Interval Newton Operator to prove the existence of the smooth curve within small interval X = [x-eps,x+eps].
-Each point of the curve corresponds to the unique periodic orbit of the Swift-Hohenberg equation. Here \xi is treated as the parameter.
-Returns the result if the curve on interval is proved successfully and the result interval XI which encloses the curve.
-*/
+/**
+ * @brief proves the existence of a smooth curve in interval product xi \times X
+ * 
+ * @param interval xi range for parameter
+ * @param double x middle point of interval X
+ * @param IPoincareMap reference to interval Poincare map object
+ * 
+ * @returns tuple {res, X} - res is a bool value, which tells if proof was successful, X is a range of initial values, which encloses the curve
+ */
 tuple<bool,interval> proveOrbit_x(interval xi, double x, IPoincareMap& pm){
     static const interval sqrt2=interval(sqrt(2.0));
     static interval S = interval(-1,1)*8e-6; // interval [-eps,eps]
@@ -54,6 +66,15 @@ tuple<bool,interval> proveOrbit_x(interval xi, double x, IPoincareMap& pm){
 Function determines the existence of the curve in range \xi \in [0, \xi_*].
 Returns number of subintervals and the last X^N set
 */
+
+/**
+ * @brief determines the existence of the curve in range \xi \in [0,\xi_*]
+ * 
+ * @param double initial point for determining the curve, approximate zero of G
+ * @param interval interval, which contains value \xi_*
+ * 
+ * @returns tuple {num_of_subintervals, X_*} - the amount of needed subintervals and enclosure of the point x(\xi_*)
+ */
 tuple<int,interval> proveCurve_x(double x, interval end) {  
     int counter_subintervals = 0;
     // definition of double Poincare map
