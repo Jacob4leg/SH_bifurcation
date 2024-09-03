@@ -8,7 +8,7 @@ using namespace std;
 using namespace chrono;
 using namespace capd;
 
-/* Function, which seeks for tightiest enclosure for the zero  */
+/* Function, which seeks for tightiest enclosure of the zero  */
 Interval interval_newton(Interval X, Interval xi, IPoincareMap &pm, int iterations=10) {
     static const interval sqrt2=interval(sqrt(2.0));
     pm.getVectorField().setParameter(0,xi);
@@ -54,18 +54,21 @@ int main() {
     double xi_threshold = 266291./131072;
     
     // first curve
+    cout << "Starting computation of x_{-} curve" << endl;
     auto [subdivisions_first_curve, X1_threshold] = proveCurve_x(x1,xi_threshold);
     X1_threshold = find_tight_enclosure(X1_threshold,xi_threshold);
     cout << "X1_threshold=" << X1_threshold << endl;
     auto after_first_curve = high_resolution_clock::now();
 
     // second curve
+    cout << "Starting computation of x_{+} curve" << endl;
     auto [subdivisions_second_curve, X2_threshold] = proveCurve_x(x2,xi_threshold);
     X2_threshold = find_tight_enclosure(X2_threshold,xi_threshold);
     cout << "X2_threshold=" << X2_threshold << endl;
     auto after_second_curve = high_resolution_clock::now();
 
     // xi curve
+    cout << "Starting computation of \\tilde{\\xi} curve" << endl;
     auto [subdivisions_xi_curve, second_der] = proveCurve_xi(xi_threshold, X1_threshold, X2_threshold);
     auto stop = high_resolution_clock::now();
 
@@ -74,7 +77,7 @@ int main() {
     auto duration_xi_curve = duration_cast<milliseconds>(stop - after_second_curve);
     auto duration_all = duration_cast<milliseconds>(stop - start);
 
-    cout.precision(2);
+    cout.precision(5);
     cout << "Time for first curve: " << double(duration_first_curve.count()) / 1000  << "s" << endl;
     cout << "Time for second curve: " << double(duration_second_curve.count()) / 1000  << "s" << endl;
     cout << "Time for xi curve: " << double(duration_xi_curve.count()) / 1000  << "s" << endl;

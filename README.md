@@ -11,18 +11,18 @@ The output of the program looks as follows:
 
 **If the curves $x_{\pm}$ are beeing determined**
 
-```xi=[], X=[], N=[], S=[]```
+```xi=[], X=[]```
 
-where in i-th iteration we check the existence of a unique smooth curve on the set xi $\times$ X. S is the width interval of the set X, and N is the result of the Interval Newton Operator.
+where in i-th iteration the program checks the existence of a unique smooth curve on the set xi $\times$ X. Program outputs every thousandth successful iteration.
 
 **If the curve $\tilde{\xi}$ is beeing determined**
 
-```XI=[], x=[], N=[], S=[], xi''(x)=[]```
+```XI=[], x=[], xi''(x)=[]```
 
-where x is treated as the parameter, and S is the width of the set XI. xi''(x) is the bound of the implicit derivative of the second order on the set XI $\times$ x. In the halway of determining $\tilde{\xi}$ curve there appears the result of determining the existence of the maximum $\tilde{\xi}( x^* )$, which looks as follows
+where x is treated as the parameter. xi''(x) is the bound of the implicit derivative of the second order on the set XI $\times$ x. Here program outputs every hundredth successful iteration. In the halfway of determining $\tilde{\xi}$ curve, there appears the result of determining the existence of the maximum $\tilde{\xi}( x^* )$, which looks as follows
 
 ```maximum in XI=[], x=[]```
 
-At the beginning and end of determining curve $\tilde{\xi}$ the program checks if the curve glues correctly with curves $x_{\pm}$ into one smooth curve. If that is the case, then the program outputs message
+At the beginning and at the end of determining curve $\tilde{\xi}$ the program checks if the curve glues correctly with curves $x_{\pm}$ into one smooth curve. If that is the case, then the program outputs message
 
 ```threshold box in parameterization```

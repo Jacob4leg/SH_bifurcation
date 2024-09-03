@@ -16,7 +16,10 @@ double findOrbit_xi(double xi, double x, DPoincareMap& pm) {
 }
 
 
-/* Function, which uses second derivative, to prove the existence of unique maximum of \xi(x). */
+/* 
+Function, which uses second derivative, to prove the existence of unique maximum of \xi(x).
+If the function returns true, then the existence of unique maxiumam is proven with success.
+*/
 bool proveMaximum(interval X, interval XI, IC2PoincareMap &pm, interval S=interval(-1,1)*1e-10) {
     static const Interval sqrt2 = Interval(sqrt(2.0));
 
@@ -62,7 +65,7 @@ bool proveMaximum(interval X, interval XI, IC2PoincareMap &pm, interval S=interv
 /*
 Function which uses the theorem for Interval Newton Operator to prove the existence of the smooth curve within small interval \Xi = [\xi-eps,\xi+eps].
 Each point of the curve corresponds to the unique periodic orbit of the Swift-Hohenberg equation. Here x is treated as the parameter
-If the function returns false, then we shrink x range and try again.
+Returns the result if the curve on interval is proved successfully, the result interval XI which encloses the curve and the bound of the second derivative
 */
 tuple<bool,interval,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMap &pm, interval X_end) {
     static const interval sqrt2=interval(sqrt(2.0));
@@ -119,14 +122,13 @@ tuple<bool,interval,interval> proveOrbit_xi(double xi, interval x, IC2PoincareMa
         S *= 0.95; // we shrink \xi range if we failed
         return {false,0,0};
     }
-
     bool geometric_ok = x<-1 and v1[0]>1 and v2[0]<1 and v2[0]>-1; // geometric condition
     return {subset(N,S) and geometric_ok and (xi_x_x < 0) and intersection(maxS,N*interval(-1,1)*1.001,S),XI,xi_x_x};
 }
 
 /*
 Function determines the existence of the curve in range x \in X_*.
-Returns number of subintervals
+Returns the number of subintervals and the enclosure of the second derivative
 */
 tuple<int,interval> proveCurve_xi(double xi, interval X_start, interval X_end) {
     int counter_subintervals = 0;

@@ -19,7 +19,7 @@ double findOrbit_x(double xi, double x, DPoincareMap& pm){
 /*
 Function which uses the theorem for Interval Newton Operator to prove the existence of the smooth curve within small interval X = [x-eps,x+eps].
 Each point of the curve corresponds to the unique periodic orbit of the Swift-Hohenberg equation. Here \xi is treated as the parameter.
-If the function returns false, then we shrink \xi range and try again.
+Returns the result if the curve on interval is proved successfully and the result interval XI which encloses the curve.
 */
 tuple<bool,interval> proveOrbit_x(interval xi, double x, IPoincareMap& pm){
     static const interval sqrt2=interval(sqrt(2.0));
@@ -45,11 +45,9 @@ tuple<bool,interval> proveOrbit_x(interval xi, double x, IPoincareMap& pm){
         S *= 0.95; // we shrink [-eps,eps] interval if integration failed
         return {false,0};
     }
-
     bool geometric_ok = X<-1 and v1[0]>1 and v2[0]<1 and v2[0]>-1; // geometric conditions for periodic orbits
-
     // returns the result and X range needed to verify if the curve is glued correctly
-    return {subset(N,S) and X<-1 and v1[0]>1 and v2[0]<1 and v2[0]>-1 and intersection(maxS,N*interval(-1,1)*1.03,S),X};
+    return {subset(N,S) and geometric_ok and intersection(maxS,N*interval(-1,1)*1.03,S),X};
 }
 
 /*
