@@ -62,11 +62,6 @@ tuple<bool,interval> proveOrbit_x(interval xi, double x, IPoincareMap& pm){
     return {subset(N,S) and geometric_ok and intersection(maxS,N*interval(-1,1)*1.03,S),X};
 }
 
-/*
-Function determines the existence of the curve in range \xi \in [0, \xi_*].
-Returns number of subintervals and the last X^N set
-*/
-
 /**
  * @brief determines the existence of the curve in range \xi \in [0,\xi_*]
  * 
